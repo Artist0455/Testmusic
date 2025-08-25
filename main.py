@@ -1,50 +1,44 @@
-import os
+import os, requests
 from pyrogram import Client, filters
-from pytgcalls import PyTgCalls, idle
-from pytgcalls.types import Update
-from pytgcalls.types.input_stream import InputAudioStream
-from yt_dlp import YoutubeDL
+from pyrogram.types import Message
 
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-SESSION_STRING = os.getenv("SESSION_STRING")
+APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
 
-app = Client("music-bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-user = Client(SESSION_STRING, api_id=API_ID, api_hash=API_HASH)
+bot = Client("reelbot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-pytg = PyTgCalls(user)
+@bot.on_message(filters.command("start"))
+def start(_, msg: Message):
+    msg.reply("👋 Hi! Send me an Instagram Reel link with:\n`/reel <url>`")
 
-ydl_opts = {"format": "bestaudio", "noplaylist": True}
-
-@app.on_message(filters.command("start"))
-async def start(_, msg):
-    await msg.reply_text("🎵 VC Music Bot is running!\nUse /play <song name or link>")
-
-@app.on_message(filters.command("play") & filters.reply | filters.regex("play"))
-async def play(_, msg):
+@bot.on_message(filters.command("reel"))
+def reel_downloader(_, msg: Message):
     if len(msg.command) < 2:
-        return await msg.reply_text("❌ Please give a song name or link.")
+        msg.reply("⚠️ Please send a reel URL.\nExample: `/reel <link>`")
+        return
+    
+    url = msg.command[1]
+    msg.reply("⏳ Downloading your reel, please wait...")
 
-    query = " ".join(msg.command[1:])
-    await msg.reply_text(f"🔎 Searching: {query}")
+    payload = {"urls":[{"url": url}], "quality":"best"}
 
-    with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(query, download=False)
-        url = info["url"]
+    r = requests.post(
+        f"https://api.apify.com/v2/acts/thenetaji~instagram-video-downloader/runs?token={APIFY_API_TOKEN}",
+        json=payload
+    ).json()
 
-    chat_id = msg.chat.id
-    await pytg.join_group_call(chat_id, InputAudioStream(url))
-    await msg.reply_text(f"▶️ Playing: {info['title']}")
+    # response me se video link nikalna
+    video_url = None
+    try:
+        video_url = r["data"]["input"]["urls"][0]["url"]
+    except:
+        pass
 
-async def main():
-    await user.start()
-    await pytg.start()
-    await app.start()
-    print("✅ Music bot started.")
-    await idle()
+    if video_url:
+        msg.reply_video(video_url, caption="🎬 Here is your Reel!")
+    else:
+        msg.reply("❌ Failed to fetch the reel. Try again later.")
 
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
-  
+bot.run()
