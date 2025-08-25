@@ -1,1 +1,4 @@
-pytgcalls==3.0.0.dev21
+pyrogram
+tgcrypto
+requests
+python-dotenv
