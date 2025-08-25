@@ -1,6 +1,1 @@
-pyrogram
-tgcrypto
 pytgcalls==3.0.0.dev21
-python-dotenv
-yt-dlp
-ffmpeg-python
